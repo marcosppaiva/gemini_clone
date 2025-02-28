@@ -57,11 +57,13 @@ body.hide-header .header{
     display: none;
 }
 
-.navbar{
+.navbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 1rem 2rem;
+    position: relative;
+    z-index: 1005;
 }
 
 .navbar__logo{
@@ -69,7 +71,14 @@ body.hide-header .header{
     font-weight: 600;
 }
 
-.navbar__button{
+/* Group of buttons on the right side */
+.navbar__buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.navbar__button {
     padding: 0.5rem;
     font-size: 1.5rem;
     display: flex;
@@ -81,6 +90,15 @@ body.hide-header .header{
     color: var(--text-color);
     cursor: pointer;
     transition: background 0.3s ease;
+}
+
+.navbar__logout {
+    background-color: var(--secondary-color);
+}
+
+.navbar__logout:hover {
+    background-color: rgba(243, 66, 66, 0.15); /* Subtle red tint on hover */
+    color: #f34242; /* Red text on hover */
 }
 
 .navbar__button:hover{
@@ -616,6 +634,18 @@ blockquote{
     right: 0.75rem;
     pointer-events: none;
     font-size: 1.2rem;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 600px) {
+    .navbar {
+        padding: 1rem;
+    }
+    
+    .navbar__button {
+        padding: 0.4rem;
+        font-size: 1.3rem;
+    }
 }
 
 /* For better mobile layout */
