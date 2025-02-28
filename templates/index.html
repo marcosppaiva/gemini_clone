@@ -1,0 +1,139 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+    <link rel="stylesheet" href="/static/assets/css/sidebar.css">
+
+    <title>Gemini Clone</title>
+</head>
+
+<body>
+{% block content %}
+    <!-- Sidebar Backdrop - Added to capture clicks outside the sidebar -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Sidebar for conversation history -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar__header">
+            <h3 class="sidebar__title">Chat History</h3>
+            <button class="sidebar__new-chat">
+                <i class='bx bx-plus'></i>
+                <span>New Chat</span>
+            </button>
+        </div>
+        <div class="sidebar__history">
+            <!-- Chat history items will be dynamically added here -->
+            <div class="sidebar__item sidebar__item--active">
+                <i class='bx bx-message-rounded'></i>
+                <span>Sample conversation 1</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-message-rounded'></i>
+                <span>Sample conversation 2</span>
+            </div>
+        </div>
+        <div class="sidebar__footer">
+            <button class="sidebar__toggle" id="sidebarToggle">
+                <i class='bx bx-chevron-left'></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content" id="mainContent">
+        <nav class="navbar">
+            <button class="navbar__menu" id="menuToggle">
+                <i class='bx bx-menu'></i>
+            </button>
+            <div class="navbar__model-container">
+                <select id="modelSelector" class="navbar__model-selector">
+                    <option value="openai/gpt-4o">openai/gpt-4o</option>
+                    <option value="google/gemini-1.5-pro">google/gemini-1.5-pro</option>
+                    <option value="groq/llama-3.1-8b-instant">groq/llama-3.1-8b-instant</option>
+                    <option value="anthropic/claude-3-5-sonnet">anthropic/claude-3-5-sonnet</option>
+                </select>
+                <i class='bx bx-chevron-down navbar__model-icon'></i>
+            </div>
+            <button class="navbar__button" id="themeToggler"><i class='bx bx-sun'></i></button>
+            
+        </nav>
+
+        <header class="header">
+            <div class="header__title">
+                <h1>Hello, There!</h1>
+                <h2>How can I help you today?</h2>
+            </div>
+            <div class="suggests">
+                <div class="suggests__item">
+                    <p class="suggests__item-text">
+                        Give tips on helping kids finish their homework on time
+                    </p>
+                    <div class="suggests__item-icon">
+                        <i class='bx bx-stopwatch'></i>
+                    </div>
+                </div>
+                <div class="suggests__item">
+                    <p class="suggests__item-text">
+                        Help me write an out-of-office email
+                    </p>
+                    <div class="suggests__item-icon">
+                        <i class='bx bx-edit-alt'></i>
+                    </div>
+                </div>
+                <div class="suggests__item">
+                    <p class="suggests__item-text">
+                        Give me phrases to learn a new language
+                    </p>
+                    <div class="suggests__item-icon">
+                        <i class='bx bx-compass'></i>
+                    </div>
+                </div>
+                <div class="suggests__item">
+                    <p class="suggests__item-text">
+                        Show me how to build something by hand
+                    </p>
+                    <div class="suggests__item-icon">
+                        <i class='bx bx-wrench'></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="chats"></section>
+
+        <section class="prompt">
+            <form id="messageArea" method="POST" class="prompt__form" novalidate>
+                {% csrf_token %}
+                <div class="prompt__input-wrapper">
+                    <input id="question" name="question" type="text" placeholder="Enter a prompt here" class="prompt__form-input" required>
+                    <button class="prompt__form-button" id="sendButton">
+                        <i class='bx bx-send'></i>
+                    </button>
+                    <button class="prompt__form-button" id="deleteButton">
+                        <i class='bx bx-trash'></i>
+                    </button>
+                </div>
+            </form>
+            <p class="prompt__disclaim">
+                This application may display inaccurate info, including about people, so double-check its responses.
+            </p>
+        </section>
+    </main>
+
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="/static/assets/script.js"></script>
+    <script src="/static/assets/sidebar.js"></script>
+{% endblock scripts %}
+
+</body>
+{% endblock content %}
+</html>

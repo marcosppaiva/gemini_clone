@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+    <link rel="stylesheet" href="/static/assets/css/login.css">
+    <title>Gemini Clone</title>
+</head>
+
+<body class="login-body">
+{% block content %}
+    <nav class="navbar">
+        <h3 class="navbar__logo">Chat App</h3>
+        <button class="navbar__button" id="themeToggler"><i class='bx bx-sun'></i></button>
+    </nav>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1 class="auth-title">Welcome Back</h1>
+                <p class="auth-subtitle">Login to continue</p>
+            </div>
+            
+            <form method="post" action="{% url 'login' %}" class="auth-form">
+                {% csrf_token %}
+                
+                {% if error_message %}
+                <div class="auth-error">
+                    <i class='bx bx-error-circle'></i>
+                    <span>{{ error_message }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="auth-field">
+                    <label for="email">Email</label>
+                    <div class="auth-input-wrapper">
+                        <i class='bx bx-user'></i>
+                        <input type="text" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
+                </div>
+                
+                <div class="auth-field">
+                    <label for="password">Password</label>
+                    <div class="auth-input-wrapper">
+                        <i class='bx bx-lock-alt'></i>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
+                </div>
+                
+                <div class="auth-options">
+                    <div class="auth-remember">
+                        <input type="checkbox" id="remember" name="remember">
+                        <label for="remember">Remember me</label>
+                    </div>
+                    <a href="{% url 'password_reset' %}" class="auth-forgot">Forgot password?</a>
+                </div>
+                
+                <button type="submit" class="auth-button">
+                    <span>Sign In</span>
+                    <i class='bx bx-right-arrow-alt'></i>
+                </button>
+                
+                <div class="auth-alternative">
+                    <p>Don't have an account? <a href="{% url 'register' %}">Create Account</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+{% block scripts %}
+    <script src="/static/assets/script.js"></script>
+{% endblock scripts %}
+
+</body>
+{% endblock content %}
+</html>
