@@ -1,8 +1,7 @@
 from django.db import IntegrityError
 from django.http import HttpResponse
-from django.contrib import messages
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, logout, authenticate
 from vertexai.generative_models import GenerativeModel
 from django.contrib.auth.decorators import login_required
 
@@ -54,6 +53,12 @@ def login_view(request):
             )
 
     return render(request, 'login.html')
+
+
+def logout_view(request):
+    logout(request)
+
+    return redirect('login')
 
 
 def password_reset_view(request): ...
