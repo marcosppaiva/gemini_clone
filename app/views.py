@@ -126,17 +126,17 @@ def logout_view(request):
 def password_reset_view(request): ...
 
 
+@login_required(login_url='login')
 def start_new_conversation(request):
     """
     View to start a new conversation
     """
-    if request.user.is_authenticated:
-        conversation = Conversation.objects.create(
-            user=request.user, title="New Conversation"
-        )
-        return redirect('index', conversation_id=conversation.id)
-
+    # conversation = Conversation.objects.create(
+    #     user=request.user, title="New Conversation"
+    # )
     return redirect('index')
+
+    # return redirect('index')
 
 
 def delete_conversation(request, conversation_id):
