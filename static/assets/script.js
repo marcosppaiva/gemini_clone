@@ -3,73 +3,25 @@ const suggestionItems = document.querySelectorAll(".suggests__item");
 const messageForm = document.querySelector(".prompt__form");
 const themeToggleButton = document.getElementById("themeToggler");
 const clearChatButton = document.getElementById("deleteButton");
+const header = document.querySelector(".header");
 
 // State variables
 let currentUserMessage = null;
 let isGeneratingResponse = false;
 
+// If the window.currentConversationId is set from the server, use it
+if (typeof window.currentConversationId !== 'undefined') {
+    currentConversationId = window.currentConversationId;
+} else {
+    currentConversationId = getConversationIdFromUrl();
+}
+
 // Scroll to bottom of chat function
 const scrollToBottom = () => {
-    // chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
     window.scrollTo(0, document.body.scrollHeight);
-
 };
 
-// Load saved data from local storage
-const loadSavedChatHistory = () => {
-    const savedConversations = JSON.parse(localStorage.getItem("saved-api-chats")) || [];
-    const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
-
-    document.body.classList.toggle("light_mode", isLightTheme);
-    themeToggleButton.innerHTML = isLightTheme ? '<i class="bx bx-moon"></i>' : '<i class="bx bx-sun"></i>';
-
-    chatHistoryContainer.innerHTML = '';
-
-    // Iterate through saved chat history and display messages
-    savedConversations.forEach(conversation => {
-        // Display the user's message
-        const userMessageHtml = `
-            <div class="message__content">
-                <img class="message__avatar" src="/static/assets/profile.png" alt="User avatar">
-               <p class="message__text">${conversation.userMessage}</p>
-            </div>
-        `;
-
-        const outgoingMessageElement = createChatMessageElement(userMessageHtml, "message--outgoing");
-        chatHistoryContainer.appendChild(outgoingMessageElement);
-
-        // Display the API response
-        const responseText = conversation.apiResponse;
-        const parsedApiResponse = marked.parse(responseText); // Convert to HTML
-        const rawApiResponse = responseText; // Plain text version
-
-        const responseHtml = `
-           <div class="message__content">
-                <img class="message__avatar" src="/static/assets/gemini.svg" alt="Gemini avatar">
-                <p class="message__text"></p>
-                <div class="message__loading-indicator hide">
-                    <div class="message__loading-bar"></div>
-                    <div class="message__loading-bar"></div>
-                    <div class="message__loading-bar"></div>
-                </div>
-            </div>
-            <span onClick="copyMessageToClipboard(this)" class="message__icon hide"><i class='bx bx-copy-alt'></i></span>
-        `;
-
-        const incomingMessageElement = createChatMessageElement(responseHtml, "message--incoming");
-        chatHistoryContainer.appendChild(incomingMessageElement);
-
-        const messageTextElement = incomingMessageElement.querySelector(".message__text");
-
-        // Display saved chat without typing effect
-        showTypingEffect(rawApiResponse, parsedApiResponse, messageTextElement, incomingMessageElement, true); // 'true' skips typing
-    });
-
-    document.body.classList.toggle("hide-header", savedConversations.length > 0);
-    scrollToBottom();
-};
-
-// create a new chat message element
+// Create a new chat message element
 const createChatMessageElement = (htmlContent, ...cssClasses) => {
     const messageElement = document.createElement("div");
     messageElement.classList.add("message", ...cssClasses);
@@ -80,14 +32,18 @@ const createChatMessageElement = (htmlContent, ...cssClasses) => {
 // Show typing effect
 const showTypingEffect = (rawText, htmlText, messageElement, incomingMessageElement, skipEffect = false) => {
     const copyIconElement = incomingMessageElement.querySelector(".message__icon");
-    copyIconElement.classList.add("hide"); // Initially hide copy button
+    if (copyIconElement) {
+        copyIconElement.classList.add("hide"); // Initially hide copy button
+    }
 
     if (skipEffect) {
         // Display content directly without typing
         messageElement.innerHTML = htmlText;
         hljs.highlightAll();
         addCopyButtonToCodeBlocks();
-        copyIconElement.classList.remove("hide"); // Show copy button
+        if (copyIconElement) {
+            copyIconElement.classList.remove("hide"); // Show copy button
+        }
         isGeneratingResponse = false;
         scrollToBottom(); // Scroll to bottom after content is displayed
         return;
@@ -106,81 +62,24 @@ const showTypingEffect = (rawText, htmlText, messageElement, incomingMessageElem
             messageElement.innerHTML = htmlText;
             hljs.highlightAll();
             addCopyButtonToCodeBlocks();
-            copyIconElement.classList.remove("hide");
+            if (copyIconElement) {
+                copyIconElement.classList.remove("hide");
+            }
             scrollToBottom(); // Scroll after formatting
         }
     }, 75);
-};
-
-// Fetch API response based on user input from Django backend
-const requestApiResponse = async (incomingMessageElement) => {
-    const messageTextElement = incomingMessageElement.querySelector(".message__text");
-    const loadingIndicator = incomingMessageElement.querySelector(".message__loading-indicator");
-    
-    // Show loading indicator
-    if (loadingIndicator) {
-        loadingIndicator.classList.remove("hide");
-    }
-
-    try {
-        // Get CSRF token from the form
-        const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
-        
-        // Create form data for Django POST request
-        const formData = new FormData();
-        formData.append("question", currentUserMessage);
-
-        const response = await fetch(window.location.href, {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": csrfToken,
-            },
-            body: formData
-        });
-
-        if (!response.ok) throw new Error(`Error: ${response.status}`);
-        
-        const responseText = await response.text();
-        if (!responseText) throw new Error("Empty response received.");
-
-        const parsedApiResponse = marked.parse(responseText);
-        const rawApiResponse = responseText;
-
-        // Hide loading indicator
-        if (loadingIndicator) {
-            loadingIndicator.classList.add("hide");
-        }
-
-        showTypingEffect(rawApiResponse, parsedApiResponse, messageTextElement, incomingMessageElement);
-
-        // Save conversation in local storage
-        let savedConversations = JSON.parse(localStorage.getItem("saved-api-chats")) || [];
-        savedConversations.push({
-            userMessage: currentUserMessage,
-            apiResponse: responseText
-        });
-        localStorage.setItem("saved-api-chats", JSON.stringify(savedConversations));
-    } catch (error) {
-        isGeneratingResponse = false;
-        messageTextElement.innerText = `Error: ${error.message}`;
-        messageTextElement.closest(".message").classList.add("message--error");
-        
-        // Hide loading indicator on error
-        if (loadingIndicator) {
-            loadingIndicator.classList.add("hide");
-        }
-        
-        scrollToBottom(); // Scroll to show error message
-    } finally {
-        incomingMessageElement.classList.remove("message--loading");
-    }
 };
 
 // Add copy button to code blocks
 const addCopyButtonToCodeBlocks = () => {
     const codeBlocks = document.querySelectorAll('pre');
     codeBlocks.forEach((block) => {
+        // Skip if already has a copy button
+        if (block.querySelector('.code__copy-btn')) return;
+        
         const codeElement = block.querySelector('code');
+        if (!codeElement) return;
+        
         let language = [...codeElement.classList].find(cls => cls.startsWith('language-'))?.replace('language-', '') || 'Text';
 
         const languageLabel = document.createElement('div');
@@ -207,9 +106,55 @@ const addCopyButtonToCodeBlocks = () => {
     scrollToBottom(); // Scroll after adding code block elements
 };
 
-// Show loading animation during API request
-const displayLoadingAnimation = () => {
-    const loadingHtml = `
+// Copy message to clipboard
+window.copyMessageToClipboard = (copyButton) => {
+    const messageContent = copyButton.parentElement.querySelector(".message__text").innerText;
+
+    navigator.clipboard.writeText(messageContent);
+    copyButton.innerHTML = `<i class='bx bx-check'></i>`; // Confirmation icon
+    setTimeout(() => copyButton.innerHTML = `<i class='bx bx-copy-alt'></i>`, 1000); // Revert icon after 1 second
+};
+
+// Function to set the current conversation
+function setCurrentConversation(conversationId) {
+    currentConversationId = conversationId;
+    
+    // Add the conversation ID to the URL without reloading the page
+    if (conversationId) {
+        const url = new URL(window.location);
+        url.searchParams.set('conversation_id', conversationId);
+        window.history.pushState({}, '', url);
+    }
+}
+
+// Function to extract conversation ID from URL
+function getConversationIdFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('conversation_id');
+}
+
+// Function to update the sidebar to highlight the active conversation
+function updateSidebarActiveConversation(conversationId) {
+    const sidebarItems = document.querySelectorAll('.sidebar__item');
+    
+    sidebarItems.forEach(item => {
+        if (item.dataset.conversationId === conversationId) {
+            item.classList.add('sidebar__item--active');
+        } else {
+            item.classList.remove('sidebar__item--active');
+        }
+    });
+}
+
+// Function to load a specific conversation (via page navigation)
+function loadConversation(conversationId) {
+    window.location.href = `/?conversation_id=${conversationId}`;
+}
+
+// Function to send message and handle conversation tracking
+function sendMessage(message) {
+    // Create the response message with loading state
+    const incomingMessageHtml = `
         <div class="message__content">
             <img class="message__avatar" src="/static/assets/gemini.svg" alt="Gemini avatar">
             <p class="message__text"></p>
@@ -221,25 +166,103 @@ const displayLoadingAnimation = () => {
         </div>
         <span onClick="copyMessageToClipboard(this)" class="message__icon hide"><i class='bx bx-copy-alt'></i></span>
     `;
-
-    const loadingMessageElement = createChatMessageElement(loadingHtml, "message--incoming", "message--loading");
+    
+    const loadingMessageElement = createChatMessageElement(incomingMessageHtml, "message--incoming", "message--loading");
     chatHistoryContainer.appendChild(loadingMessageElement);
     
-    scrollToBottom(); // Scroll to see the loading animation
-    requestApiResponse(loadingMessageElement);
-};
-
-// Copy message to clipboard
-window.copyMessageToClipboard = (copyButton) => {
-    const messageContent = copyButton.parentElement.querySelector(".message__text").innerText;
-
-    navigator.clipboard.writeText(messageContent);
-    copyButton.innerHTML = `<i class='bx bx-check'></i>`; // Confirmation icon
-    setTimeout(() => copyButton.innerHTML = `<i class='bx bx-copy-alt'></i>`, 1000); // Revert icon after 1 second
-};
+    scrollToBottom();
+    
+    // Create FormData for the request
+    const formData = new FormData();
+    formData.append("question", message);
+    
+    // Add conversation ID if available
+    if (currentConversationId) {
+        formData.append("conversation_id", currentConversationId);
+    }
+    
+    // Add selected model
+    const modelSelector = document.getElementById('modelSelector');
+    if (modelSelector) {
+        formData.append("model", modelSelector.value);
+    }
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    
+    // Send request
+    fetch(window.location.href, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken,
+        },
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+        
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return response.json(); // Parse JSON response if content type is JSON
+        } else {
+            return response.text().then(text => {
+                return { text: text }; // Return as object with text property for compatibility
+            });
+        }
+    })
+    .then(responseData => {
+        if (!responseData || typeof responseData.text === 'undefined') {
+            throw new Error("Invalid response received.");
+        }
+        
+        // Update the conversation ID if provided in the response
+        if (responseData.conversation_id) {
+            setCurrentConversation(responseData.conversation_id);
+            
+            // If this is a new conversation, refresh the page to show updated sidebar
+            if (!currentConversationId) {
+                window.location.href = `/?conversation_id=${responseData.conversation_id}`;
+                return;
+            }
+            
+            // Update sidebar to highlight the current conversation
+            updateSidebarActiveConversation(responseData.conversation_id);
+        }
+        
+        const parsedApiResponse = marked.parse(responseData.text);
+        const rawApiResponse = responseData.text;
+        
+        const messageTextElement = loadingMessageElement.querySelector(".message__text");
+        const loadingIndicator = loadingMessageElement.querySelector(".message__loading-indicator");
+        
+        if (loadingIndicator) {
+            loadingIndicator.classList.add("hide");
+        }
+        
+        showTypingEffect(rawApiResponse, parsedApiResponse, messageTextElement, loadingMessageElement);
+    })
+    .catch(error => {
+        isGeneratingResponse = false;
+        const messageTextElement = loadingMessageElement.querySelector(".message__text");
+        messageTextElement.innerText = `Error: ${error.message}`;
+        loadingMessageElement.classList.add("message--error");
+        
+        const loadingIndicator = loadingMessageElement.querySelector(".message__loading-indicator");
+        if (loadingIndicator) {
+            loadingIndicator.classList.add("hide");
+        }
+        
+        scrollToBottom();
+    })
+    .finally(() => {
+        loadingMessageElement.classList.remove("message--loading");
+    });
+}
 
 // Handle sending chat messages
-const handleOutgoingMessage = () => {
+function handleOutgoingMessage() {
     currentUserMessage = messageForm.querySelector(".prompt__form-input").value.trim();
     if (!currentUserMessage || isGeneratingResponse) return; // Exit if no message or already generating response
 
@@ -257,53 +280,26 @@ const handleOutgoingMessage = () => {
     chatHistoryContainer.appendChild(outgoingMessageElement);
 
     messageForm.reset(); // Clear input field
-    document.body.classList.add("hide-header");
+    
+    // Hide the header if visible
+    if (header) {
+        header.style.display = 'none';
+        document.body.classList.add("hide-header");
+    }
     
     scrollToBottom(); // Scroll after sending message
-    setTimeout(displayLoadingAnimation, 500); // Show loading animation after delay
-};
+    setTimeout(() => {
+        sendMessage(currentUserMessage);
+    }, 500);
+}
 
-// Toggle between light and dark themes
-themeToggleButton.addEventListener('click', () => {
-    const isLightTheme = document.body.classList.toggle("light_mode");
-    localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
-
-    // Update icon based on theme
-    const newIconClass = isLightTheme ? "bx bx-moon" : "bx bx-sun";
-    themeToggleButton.querySelector("i").className = newIconClass;
-});
-
-// Clear all chat history
-clearChatButton.addEventListener('click', () => {
-    if (confirm("Are you sure you want to delete all chat history?")) {
-        localStorage.removeItem("saved-api-chats");
-
-        // Reload chat history to reflect changes
-        loadSavedChatHistory();
-
-        currentUserMessage = null;
-        isGeneratingResponse = false;
-        
-        // Show header again when chat history is cleared
-        document.body.classList.remove("hide-header");
-    }
-});
-
-// Handle click on suggestion items
-suggestionItems.forEach(suggestion => {
-    suggestion.addEventListener('click', () => {
-        const suggestionText = suggestion.querySelector(".suggests__item-text").innerText;
-        messageForm.querySelector(".prompt__form-input").value = suggestionText;
-        currentUserMessage = suggestionText;
-        handleOutgoingMessage();
+// Add code syntax highlighting to any existing code blocks
+function highlightCodeBlocks() {
+    document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
     });
-});
-
-// Prevent default form submission and handle outgoing message
-messageForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    handleOutgoingMessage();
-});
+    addCopyButtonToCodeBlocks();
+}
 
 // Observe content changes to scroll when new content is added
 const observeContentChanges = () => {
@@ -329,60 +325,83 @@ const observeContentChanges = () => {
     });
 };
 
+// Connect sidebar conversation items to load correct conversations
+function initializeConversationItems() {
+    const sidebarItems = document.querySelectorAll('.sidebar__item');
+    
+    sidebarItems.forEach(item => {
+        const conversationId = item.dataset.conversationId;
+        if (!conversationId) return;
+        
+        // Remove any existing click listeners
+        const newItem = item.cloneNode(true);
+        item.parentNode.replaceChild(newItem, item);
+        
+        // Add click event to load the conversation
+        newItem.addEventListener('click', () => {
+            loadConversation(conversationId);
+        });
+    });
+}
+
+// EVENT LISTENERS
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Set smooth scrolling behavior
-    chatHistoryContainer.style.scrollBehavior = 'smooth';
+    if (chatHistoryContainer) {
+        chatHistoryContainer.style.scrollBehavior = 'smooth';
+    }
     
     // Initialize content observer
     observeContentChanges();
     
-    // Load saved chat history
-    loadSavedChatHistory();
+    // Add syntax highlighting to existing code blocks
+    highlightCodeBlocks();
+    
+    // Initialize conversation items in sidebar
+    initializeConversationItems();
     
     // Add resize listener to handle scrolling when window size changes
     window.addEventListener('resize', scrollToBottom);
+    
+    // Scroll to bottom on initial load
+    scrollToBottom();
 });
 
-// Model selector functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const modelSelector = document.getElementById('modelSelector');
-    
-    if (modelSelector) {
-        // Load previously selected model from localStorage if available
-        const savedModel = localStorage.getItem('selectedModel');
-        if (savedModel) {
-            modelSelector.value = savedModel;
-        }
-        
-        // Handle model selection change
-        modelSelector.addEventListener('change', function() {
-            const selectedModel = modelSelector.value;
-            
-            // Save selection to localStorage
-            localStorage.setItem('selectedModel', selectedModel);
-            
-            // You can add code here to change the active model
-            console.log(`Model changed to: ${selectedModel}`);
-            
-            // Optional: Show a notification or loading indicator
-            const notification = document.createElement('div');
-            notification.className = 'model-notification';
-            notification.textContent = `Switched to ${selectedModel}`;
-            document.body.appendChild(notification);
-            
-            // Remove notification after 3 seconds
-            setTimeout(() => {
-                notification.classList.add('fade-out');
-                setTimeout(() => {
-                    document.body.removeChild(notification);
-                }, 500);
-            }, 3000);
-        });
+// Toggle between light and dark themes
+themeToggleButton.addEventListener('click', () => {
+    const isLightTheme = document.body.classList.toggle("light_mode");
+    localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
+
+    // Update icon based on theme
+    const newIconClass = isLightTheme ? "bx bx-moon" : "bx bx-sun";
+    themeToggleButton.querySelector("i").className = newIconClass;
+});
+
+// Clear all chat history button - redirect to index now
+clearChatButton.addEventListener('click', () => {
+    if (confirm("Are you sure you want to clear this conversation?")) {
+        // If we're in a conversation, redirect to home
+        window.location.href = '/';
     }
 });
 
-// Model selection
+// Handle click on suggestion items
+suggestionItems.forEach(suggestion => {
+    suggestion.addEventListener('click', () => {
+        const suggestionText = suggestion.querySelector(".suggests__item-text").innerText;
+        messageForm.querySelector(".prompt__form-input").value = suggestionText;
+        handleOutgoingMessage();
+    });
+});
+
+// Prevent default form submission and handle outgoing message
+messageForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleOutgoingMessage();
+});
+
 // Model selector functionality
 document.addEventListener('DOMContentLoaded', function() {
     const modelSelector = document.getElementById('modelSelector');
@@ -401,10 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Save selection to localStorage
             localStorage.setItem('selectedModel', selectedModel);
             
-            // You can add code here to change the active model
-            console.log(`Model changed to: ${selectedModel}`);
-            
-            // Optional: Show a notification or loading indicator
+            // Show notification of model change
             const notification = document.createElement('div');
             notification.className = 'model-notification';
             notification.textContent = `Switched to ${selectedModel}`;
@@ -429,47 +445,35 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutButton.addEventListener('click', function() {
             // Show confirmation dialog
             if (confirm('Are you sure you want to log out?')) {
-                console.log('User confirmed logout');
-                
-                // You can replace this with your actual logout logic
-                // For example, redirect to logout URL or call a logout API
-                
-                // Example 1: Redirect to logout page
+                // Redirect to logout page
                 window.location.href = '/logout/';
-                
-                // Example 2: Call logout API and then redirect
-                // fetch('/api/logout/', {
-                //     method: 'POST',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //         'X-CSRFToken': getCookie('csrftoken')
-                //     }
-                // })
-                // .then(response => {
-                //     if (response.ok) {
-                //         window.location.href = '/login/';
-                //     }
-                // })
-                // .catch(error => {
-                //     console.error('Logout failed:', error);
-                // });
             }
         });
     }
-    
-    // Helper function to get CSRF token from cookies (for Django)
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
+});
+
+// Helper function to get CSRF token from cookies (for Django)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
         }
-        return cookieValue;
     }
-});
+    return cookieValue;
+}
+
+// Apply theme from localStorage on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
+    document.body.classList.toggle("light_mode", isLightTheme);
+    
+    if (themeToggleButton) {
+        themeToggleButton.innerHTML = isLightTheme ? '<i class="bx bx-moon"></i>' : '<i class="bx bx-sun"></i>';
+    }
+})
