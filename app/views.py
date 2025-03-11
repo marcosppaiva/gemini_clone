@@ -5,13 +5,14 @@ from django.contrib.auth import login, logout, authenticate
 from vertexai.generative_models import GenerativeModel
 from django.contrib.auth.decorators import login_required
 
+from llm.llm_factory import LLMFactory
+
 from .models import CustomUser, ChatHistory, Conversation
 from .prompt_manager import PromptManager
 
 
 @login_required(login_url='login')
 def index(request):
-
     conversation_id = request.GET.get('conversation_id')
     if conversation_id:
         try:
@@ -19,7 +20,6 @@ def index(request):
                 id=conversation_id, user=request.user
             )
             messages = conversation.messages.all().order_by('created_at')
-            print(f'Aqui eu recuperei as mesgs {messages}')
 
             context = {
                 'conversation': conversation,
@@ -38,7 +38,10 @@ def index(request):
         }
 
     if request.method == 'POST':
-        model_name = 'gemini-1.5-flash-002'
+
+        provider = request.POST.get("model")
+        model = LLMFactory.get_provider(provider)
+
         question = request.POST.get('question')
 
         conversation_id = request.POST.get('conversation_id')
@@ -46,8 +49,7 @@ def index(request):
         try:
             prompt_manager = PromptManager()
 
-            model = GenerativeModel(model_name=model_name)
-            response = model.generate_content(question)
+            response = model.generate_text(question)
 
             if conversation_id:
                 try:
@@ -61,7 +63,7 @@ def index(request):
                 prompt = prompt_manager.get_prompt(
                     'request_title', **{'question': question}
                 )
-                title = model.generate_content(prompt).text
+                title = model.generate_text(prompt)
 
                 conversation.title = title
 
@@ -69,18 +71,18 @@ def index(request):
                 conversation=conversation,
                 user=request.user,
                 question=question,
-                answer=response.text,
-                model=model_name,
+                answer=response,
+                model=provider,
             )
             chat_history.save()
             conversation.save()
 
             response_data = {
-                'text': response.text,
+                'text': response,
                 'conversation_id': str(conversation.id),
             }
 
-            if not response or not response.text:
+            if not response:
                 return HttpResponse(
                     "I'm sorry, I couldn't generate a response. Please try again."
                 )
@@ -176,5 +178,7 @@ def register_view(request):
                 error_message = "An account with this email already exists."
 
         return render(request, 'register.html', {'error_message': error_message})
+
+    return render(request, 'register.html')
 
     return render(request, 'register.html')
