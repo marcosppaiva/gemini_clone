@@ -1,3 +1,7 @@
 Django
 Jinja2
 python-frontmatter
+google-cloud-aiplatform
+pydantic-settings
+openai
+groq
