@@ -148,13 +148,24 @@
             {% endif %}
         </section>
 
+        <!-- Add this right above the prompt section in index.html -->
+        <!-- Add this right above the prompt section in index.html -->
         <section class="prompt">
-            <form id="messageArea" method="POST" class="prompt__form" novalidate>
+            <!-- File Preview Container - Add this before the form -->
+            <div class="prompt__file-preview" style="display: none;"></div>
+            
+            <form id="messageArea" method="POST" class="prompt__form" novalidate enctype="multipart/form-data">
                 {% csrf_token %}
                 {% if conversation %}
                 <input type="hidden" name="conversation_id" value="{{ conversation.id }}">
                 {% endif %}
                 <div class="prompt__input-wrapper">
+                    <!-- File Upload Button - Add this inside the input wrapper -->
+                    <div class="prompt__file-upload">
+                        <i class='bx bx-paperclip'></i>
+                        <input type="file" id="fileInput" name="files" multiple>
+                    </div>
+                    
                     <input id="question" name="question" type="text" placeholder="Enter a prompt here" class="prompt__form-input" required>
                     <button class="prompt__form-button" id="sendButton">
                         <i class='bx bx-send'></i>

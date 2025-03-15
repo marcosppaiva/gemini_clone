@@ -1,0 +1,294 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+    <link rel="stylesheet" href="/static/assets/css/style.css">
+    <link rel="stylesheet" href="/static/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/static/assets/css/file-upload.css">
+    <link rel="stylesheet" href="/static/assets/css/file-manager.css">
+
+    <title>File Manager - Gemini Clone</title>
+</head>
+
+<body>
+{% block content %}
+    <!-- Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Sidebar for navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar__header">
+            <h3 class="sidebar__title">Navigation</h3>
+            <a href="{% url 'index' %}" class="sidebar__new-chat">
+                <i class='bx bx-message-square-dots'></i>
+                <span>Chat</span>
+            </a>
+        </div>
+        <div class="sidebar__history">
+            <div class="sidebar__item {% if current_view == 'files' %}sidebar__item--active{% endif %}">
+                <i class='bx bx-folder'></i>
+                <span>All Files</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-image'></i>
+                <span>Images</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-file'></i>
+                <span>Documents</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-code-block'></i>
+                <span>Code Files</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-archive'></i>
+                <span>Archives</span>
+            </div>
+            <div class="sidebar__item">
+                <i class='bx bx-film'></i>
+                <span>Media</span>
+            </div>
+        </div>
+        <div class="sidebar__footer">
+            <button class="sidebar__toggle" id="sidebarToggle">
+                <i class='bx bx-chevron-left'></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content" id="mainContent">
+        <nav class="navbar">
+            <button class="navbar__menu" id="menuToggle">
+                <i class='bx bx-menu'></i>
+            </button>
+            <div class="navbar__title">
+                File Manager
+            </div>
+
+             <!-- Right side buttons container -->
+            <div class="navbar__buttons">
+                <!-- Theme toggler -->
+                <button class="navbar__button" id="themeToggler">
+                    <i class='bx bx-sun'></i>
+                </button>
+                
+                <!-- Logout button -->
+                <button class="navbar__button navbar__logout" id="logoutButton">
+                    <i class='bx bx-log-out'></i>
+                </button>
+            </div>
+        </nav>
+
+        <section class="file-manager">
+            <div class="file-manager__header">
+                <h1>Your Files</h1>
+                <div class="file-manager__actions">
+                    <div class="file-manager__search">
+                        <form method="GET" action="{% url 'file_manager' %}">
+                            <input type="text" name="search" placeholder="Search files..." value="{{ search_query|default:'' }}">
+                            <button type="submit">
+                                <i class='bx bx-search'></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="file-manager__sort">
+                        <select id="sortFiles" onchange="this.form.submit()" name="sort">
+                            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                            <option value="size" {% if sort_by == 'size' %}selected{% endif %}>Size</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="file-manager__stats">
+                <div class="stat-card">
+                    <div class="stat-card__icon">
+                        <i class='bx bx-file'></i>
+                    </div>
+                    <div class="stat-card__content">
+                        <h3>{{ total_files }}</h3>
+                        <p>Total Files</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card__icon">
+                        <i class='bx bx-server'></i>
+                    </div>
+                    <div class="stat-card__content">
+                        <h3>{{ total_size_formatted }}</h3>
+                        <p>Storage Used</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card__icon">
+                        <i class='bx bx-cloud-upload'></i>
+                    </div>
+                    <div class="stat-card__content">
+                        <h3>{{ recent_uploads }}</h3>
+                        <p>Recent Uploads</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="file-manager__content">
+                {% if files %}
+                    <div class="file-grid">
+                        {% for file in files %}
+                            <div class="file-card">
+                                <div class="file-card__preview">
+                                    {% if file.file_type|slice:":5" == "image" %}
+                                        <img src="{{ file.file.url }}" alt="{{ file.original_filename }}">
+                                    {% else %}
+                                        {% with ext=file.get_file_extension|slice:"1:"|lower %}
+                                            {% if ext == 'pdf' %}
+                                                <i class='bx bxs-file-pdf'></i>
+                                            {% elif ext == 'doc' or ext == 'docx' %}
+                                                <i class='bx bxs-file-doc'></i>
+                                            {% elif ext == 'xls' or ext == 'xlsx' or ext == 'csv' %}
+                                                <i class='bx bxs-file-excel'></i>
+                                            {% elif ext == 'ppt' or ext == 'pptx' %}
+                                                <i class='bx bxs-file-ppt'></i>
+                                            {% elif ext == 'zip' or ext == 'rar' or ext == 'tar' or ext == 'gz' %}
+                                                <i class='bx bxs-file-archive'></i>
+                                            {% elif ext == 'txt' or ext == 'rtf' or ext == 'md' %}
+                                                <i class='bx bxs-file-txt'></i>
+                                            {% elif ext == 'mp3' or ext == 'wav' or ext == 'ogg' %}
+                                                <i class='bx bxs-file-music'></i>
+                                            {% elif ext == 'mp4' or ext == 'mov' or ext == 'avi' %}
+                                                <i class='bx bxs-file-video'></i>
+                                            {% elif ext == 'js' or ext == 'py' or ext == 'java' or ext == 'html' or ext == 'css' %}
+                                                <i class='bx bxs-file-code'></i>
+                                            {% else %}
+                                                <i class='bx bxs-file'></i>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </div>
+                                <div class="file-card__content">
+                                    <div class="file-card__name" title="{{ file.original_filename }}">
+                                        {{ file.original_filename|truncatechars:24 }}
+                                    </div>
+                                    <div class="file-card__meta">
+                                        <span class="file-card__size">{{ file.file_size|filesizeformat }}</span>
+                                        <span class="file-card__date">{{ file.uploaded_at|date:"M d, Y" }}</span>
+                                    </div>
+                                    <div class="file-card__actions">
+                                        <a href="{% url 'download_attachment' file.id %}" class="file-card__action" title="Download">
+                                            <i class='bx bx-download'></i>
+                                        </a>
+                                        <a href="{% url 'view_conversation' file.message.conversation.id %}" class="file-card__action" title="View in Chat">
+                                            <i class='bx bx-message-alt-detail'></i>
+                                        </a>
+                                        <a href="{% url 'delete_file' file.id %}" class="file-card__action file-card__action--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this file?')">
+                                            <i class='bx bx-trash'></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="file-card__type">
+                                    {{ file.get_file_extension|slice:"1:"|upper }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if is_paginated %}
+                    <div class="pagination">
+                        {% if page_obj.has_previous %}
+                            <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="pagination__link">
+                                <i class='bx bx-chevrons-left'></i>
+                            </a>
+                            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="pagination__link">
+                                <i class='bx bx-chevron-left'></i>
+                            </a>
+                        {% endif %}
+                        
+                        <span class="pagination__current">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                        
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="pagination__link">
+                                <i class='bx bx-chevron-right'></i>
+                            </a>
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="pagination__link">
+                                <i class='bx bx-chevrons-right'></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                {% else %}
+                    <div class="file-manager__empty">
+                        <div class="empty-state">
+                            <div class="empty-state__icon">
+                                <i class='bx bx-folder-open'></i>
+                            </div>
+                            <h2>No files found</h2>
+                            <p>You haven't uploaded any files yet, or no files match your search criteria.</p>
+                            <a href="{% url 'index' %}" class="empty-state__action">Go to Chat</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+{% block scripts %}
+    <script src="/static/assets/sidebar.js"></script>
+    <script>
+        // Apply theme from localStorage on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const isLightTheme = localStorage.getItem("themeColor") === "light_mode";
+            document.body.classList.toggle("light_mode", isLightTheme);
+            
+            const themeToggler = document.getElementById('themeToggler');
+            if (themeToggler) {
+                themeToggler.innerHTML = isLightTheme ? '<i class="bx bx-moon"></i>' : '<i class="bx bx-sun"></i>';
+                
+                // Toggle between light and dark themes
+                themeToggler.addEventListener('click', () => {
+                    const isLightTheme = document.body.classList.toggle("light_mode");
+                    localStorage.setItem("themeColor", isLightTheme ? "light_mode" : "dark_mode");
+                    
+                    // Update icon based on theme
+                    const newIconClass = isLightTheme ? "bx bx-moon" : "bx bx-sun";
+                    themeToggler.querySelector("i").className = newIconClass;
+                });
+            }
+            
+            // Logout functionality
+            const logoutButton = document.getElementById('logoutButton');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        window.location.href = '/logout/';
+                    }
+                });
+            }
+            
+            // Handle sort select change
+            const sortSelect = document.getElementById('sortFiles');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', function() {
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('sort', this.value);
+                    window.location.href = currentUrl.toString();
+                });
+            }
+        });
+    </script>
+{% endblock scripts %}
+
+</body>
+{% endblock content %}
+</html>

@@ -477,3 +477,460 @@ document.addEventListener('DOMContentLoaded', function() {
         themeToggleButton.innerHTML = isLightTheme ? '<i class="bx bx-moon"></i>' : '<i class="bx bx-sun"></i>';
     }
 })
+
+
+
+// File Upload Functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const fileInput = document.getElementById('fileInput');
+    const promptInput = document.querySelector('.prompt__form-input');
+    const filePreviewContainer = document.querySelector('.prompt__file-preview');
+    const messageForm = document.querySelector('.prompt__form');
+    const fileBadge = document.querySelector('.prompt__file-upload .badge');
+    
+    // State variables
+    const selectedFiles = new Map();
+    
+    // Initialize file input change listener
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelection);
+    }
+    
+    // Initialize drag and drop for the entire form area
+    if (messageForm) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            messageForm.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            messageForm.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            messageForm.addEventListener(eventName, unhighlight, false);
+        });
+        
+        messageForm.addEventListener('drop', handleDrop, false);
+    }
+    
+    // Prevent default drag behaviors
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Highlight drop area when dragging over it
+    function highlight() {
+        messageForm.classList.add('drag-active');
+    }
+    
+    // Remove highlight
+    function unhighlight() {
+        messageForm.classList.remove('drag-active');
+    }
+    
+    // Handle files dropped into the drop zone
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        handleFiles(files);
+    }
+    
+    // Process the selected files
+    function handleFileSelection(e) {
+        const files = e.target.files;
+        handleFiles(files);
+        
+        // Reset the file input
+        fileInput.value = '';
+    }
+    
+    // Handle all file processing
+    function handleFiles(files) {
+        if (!files || files.length === 0) return;
+        
+        // Process each file
+        Array.from(files).forEach(file => {
+            // Generate a unique ID for the file
+            const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            // Add file to our Map
+            selectedFiles.set(fileId, file);
+            
+            // Display file preview
+            displayFilePreview(file, fileId);
+        });
+        
+        // Update the input spacing
+        promptInput.classList.add('with-upload');
+        
+        // Update file count badge
+        updateFileBadge();
+    }
+    
+    // Update the file count badge
+    function updateFileBadge() {
+        if (!fileBadge) return;
+        
+        if (selectedFiles.size > 0) {
+            fileBadge.textContent = selectedFiles.size;
+            fileBadge.classList.add('active');
+        } else {
+            fileBadge.classList.remove('active');
+        }
+    }
+    
+    // Display a preview of the file
+    function displayFilePreview(file, fileId) {
+        if (!filePreviewContainer) return;
+        
+        // Ensure the preview container is visible
+        filePreviewContainer.style.display = 'flex';
+        
+        // Create preview element
+        const previewElement = document.createElement('div');
+        previewElement.className = 'file-preview-item';
+        previewElement.dataset.fileId = fileId;
+        
+        // Format file size
+        const fileSize = formatFileSize(file.size);
+        
+        // Get file extension
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        // Determine file type label
+        let fileType = getFileTypeLabel(fileExtension);
+        
+        // Get file name without extension
+        const fileName = file.name.split('.').slice(0, -1).join('.');
+        
+        // Create the preview HTML
+        previewElement.innerHTML = `
+            <div class="file-preview-content">
+                <div class="file-preview-name">${fileName}</div>
+                <div class="file-preview-type">${fileType}</div>
+            </div>
+            <div class="file-preview-footer">
+                <div class="file-preview-size">${fileSize}</div>
+                <div class="file-preview-ext">.${fileExtension}</div>
+            </div>
+            <button type="button" class="file-preview-remove" data-file-id="${fileId}">
+                <i class="bx bx-x"></i>
+            </button>
+        `;
+        
+        // Add to preview container
+        filePreviewContainer.appendChild(previewElement);
+        
+        // Add event listener to remove button
+        const removeButton = previewElement.querySelector('.file-preview-remove');
+        if (removeButton) {
+            removeButton.addEventListener('click', () => removeFile(fileId));
+        }
+    }
+    
+    // Format file size for display
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Get file type label based on extension
+    function getFileTypeLabel(extension) {
+        extension = extension.toLowerCase();
+        
+        // Code files
+        if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
+            return 'JS';
+        } else if (['html', 'htm', 'xhtml'].includes(extension)) {
+            return 'HTML';
+        } else if (['css', 'scss', 'sass', 'less'].includes(extension)) {
+            return 'CSS';
+        } else if (['py', 'pyc', 'pyd', 'pyo'].includes(extension)) {
+            return 'Python';
+        } else if (['java', 'class', 'jar'].includes(extension)) {
+            return 'Java';
+        } else if (['php', 'phtml', 'php5'].includes(extension)) {
+            return 'PHP';
+        } else if (['c', 'cpp', 'h', 'hpp', 'cc'].includes(extension)) {
+            return 'C/C++';
+        } else if (['cs', 'csx'].includes(extension)) {
+            return 'C#';
+        } else if (['rb', 'erb', 'gem'].includes(extension)) {
+            return 'Ruby';
+        } else if (['go'].includes(extension)) {
+            return 'Go';
+        } else if (['rs', 'rlib'].includes(extension)) {
+            return 'Rust';
+        } else if (['swift'].includes(extension)) {
+            return 'Swift';
+        } else if (['kt', 'kts'].includes(extension)) {
+            return 'Kotlin';
+        }
+        
+        // Documents
+        if (['pdf'].includes(extension)) {
+            return 'PDF';
+        } else if (['doc', 'docx'].includes(extension)) {
+            return 'Word';
+        } else if (['xls', 'xlsx', 'csv'].includes(extension)) {
+            return 'Excel';
+        } else if (['ppt', 'pptx'].includes(extension)) {
+            return 'PowerPoint';
+        } else if (['txt', 'rtf', 'md', 'markdown'].includes(extension)) {
+            return 'Text';
+        } else if (['json', 'xml', 'yaml', 'yml'].includes(extension)) {
+            return 'Data';
+        }
+        
+        // Media
+        if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(extension)) {
+            return 'Image';
+        } else if (['mp4', 'webm', 'mov', 'avi', 'wmv', 'flv'].includes(extension)) {
+            return 'Video';
+        } else if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(extension)) {
+            return 'Audio';
+        }
+        
+        // Archives
+        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+            return 'Archive';
+        }
+        
+        // Default
+        return extension.toUpperCase();
+    }
+    
+    // Remove a file from the selection
+    function removeFile(fileId) {
+        // Remove from Map
+        selectedFiles.delete(fileId);
+        
+        // Remove from UI
+        const previewElement = filePreviewContainer.querySelector(`[data-file-id="${fileId}"]`);
+        if (previewElement) {
+            previewElement.remove();
+        }
+        
+        // Hide preview container if empty
+        if (selectedFiles.size === 0) {
+            filePreviewContainer.style.display = 'none';
+            promptInput.classList.remove('with-upload');
+        }
+        
+        // Update file count badge
+        updateFileBadge();
+    }
+    
+    // Override the existing sendMessage function to include files
+    const originalSendMessage = window.sendMessage;
+    window.sendMessage = function(message) {
+        // If no files, use original function
+        if (selectedFiles.size === 0) {
+            return originalSendMessage(message);
+        }
+        
+        // Create FormData with all selected files and message
+        const formData = new FormData();
+        formData.append("question", message);
+        
+        // Add conversation ID if available
+        if (currentConversationId) {
+            formData.append("conversation_id", currentConversationId);
+        }
+        
+        // Add selected model
+        const modelSelector = document.getElementById('modelSelector');
+        if (modelSelector) {
+            formData.append("model", modelSelector.value);
+        }
+        
+        // Add all files
+        selectedFiles.forEach((file, fileId) => {
+            formData.append("files", file);
+        });
+        
+        // Create the response message with loading state
+        const incomingMessageHtml = `
+            <div class="message__content">
+                <img class="message__avatar" src="/static/assets/gemini.svg" alt="Gemini avatar">
+                <p class="message__text"></p>
+                <div class="message__loading-indicator">
+                    <div class="message__loading-bar"></div>
+                    <div class="message__loading-bar"></div>
+                    <div class="message__loading-bar"></div>
+                </div>
+            </div>
+            <span onClick="copyMessageToClipboard(this)" class="message__icon hide"><i class='bx bx-copy-alt'></i></span>
+        `;
+        
+        const loadingMessageElement = createChatMessageElement(incomingMessageHtml, "message--incoming", "message--loading");
+        chatHistoryContainer.appendChild(loadingMessageElement);
+        
+        scrollToBottom();
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+        
+        // Send request
+        fetch(window.location.href, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken,
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server responded with status ${response.status}`);
+            }
+            
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                return response.json();
+            } else {
+                return response.text().then(text => {
+                    return { text: text };
+                });
+            }
+        })
+        .then(responseData => {
+            if (!responseData || typeof responseData.text === 'undefined') {
+                throw new Error("Invalid response received.");
+            }
+            
+            // Update the conversation ID if provided in the response
+            if (responseData.conversation_id) {
+                setCurrentConversation(responseData.conversation_id);
+                
+                // If this is a new conversation, refresh the page to show updated sidebar
+                if (!currentConversationId) {
+                    window.location.href = `/?conversation_id=${responseData.conversation_id}`;
+                    return;
+                }
+                
+                // Update sidebar to highlight the current conversation
+                updateSidebarActiveConversation(responseData.conversation_id);
+            }
+            
+            const parsedApiResponse = marked.parse(responseData.text);
+            const rawApiResponse = responseData.text;
+            
+            const messageTextElement = loadingMessageElement.querySelector(".message__text");
+            const loadingIndicator = loadingMessageElement.querySelector(".message__loading-indicator");
+            
+            if (loadingIndicator) {
+                loadingIndicator.classList.add("hide");
+            }
+            
+            showTypingEffect(rawApiResponse, parsedApiResponse, messageTextElement, loadingMessageElement);
+            
+            // Clear file preview after successful send
+            clearFileUploads();
+        })
+        .catch(error => {
+            isGeneratingResponse = false;
+            const messageTextElement = loadingMessageElement.querySelector(".message__text");
+            messageTextElement.innerText = `Error: ${error.message}`;
+            loadingMessageElement.classList.add("message--error");
+            
+            const loadingIndicator = loadingMessageElement.querySelector(".message__loading-indicator");
+            if (loadingIndicator) {
+                loadingIndicator.classList.add("hide");
+            }
+            
+            scrollToBottom();
+        })
+        .finally(() => {
+            loadingMessageElement.classList.remove("message--loading");
+        });
+    };
+    
+    // Clear all file uploads
+    function clearFileUploads() {
+        selectedFiles.clear();
+        if (filePreviewContainer) {
+            filePreviewContainer.innerHTML = '';
+            filePreviewContainer.style.display = 'none';
+        }
+        promptInput.classList.remove('with-upload');
+        
+        // Update file count badge
+        updateFileBadge();
+    }
+    
+    // Override handleOutgoingMessage to include files
+    window.handleOutgoingMessage = function() {
+        currentUserMessage = messageForm.querySelector(".prompt__form-input").value.trim();
+        if (!currentUserMessage && selectedFiles.size === 0) return; // Exit if no message and no files
+        if (isGeneratingResponse) return; // Exit if already generating response
+        
+        isGeneratingResponse = true;
+        
+        let outgoingMessageHtml = `
+            <div class="message__content">
+                <img class="message__avatar" src="/static/assets/profile.png" alt="User avatar">
+                <p class="message__text"></p>
+        `;
+        
+        // Add file attachments to the message if any
+        if (selectedFiles.size > 0) {
+            outgoingMessageHtml += `<div class="message__attachments">`;
+            
+            selectedFiles.forEach((file) => {
+                // Format file size
+                const fileSize = formatFileSize(file.size);
+                
+                // Get file extension
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                
+                // Determine file type label
+                let fileType = getFileTypeLabel(fileExtension);
+                
+                // Get file name without extension
+                const fileName = file.name.split('.').slice(0, -1).join('.');
+                
+                outgoingMessageHtml += `
+                    <div class="message__attachment">
+                        <div class="message__attachment-content">
+                            <div class="message__attachment-name">${fileName}</div>
+                            <div class="message__attachment-type">${fileType}</div>
+                        </div>
+                        <div class="message__attachment-footer">
+                            <div class="message__attachment-size">${fileSize}</div>
+                            <div class="message__attachment-ext">.${fileExtension}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            outgoingMessageHtml += `</div>`;
+        }
+        
+        outgoingMessageHtml += `</div>`;
+        
+        const outgoingMessageElement = createChatMessageElement(outgoingMessageHtml, "message--outgoing");
+        outgoingMessageElement.querySelector(".message__text").innerText = currentUserMessage || `Sent ${selectedFiles.size} file${selectedFiles.size > 1 ? 's' : ''}`;
+        chatHistoryContainer.appendChild(outgoingMessageElement);
+        
+        messageForm.reset(); // Clear input field
+        
+        // Hide the header if visible
+        if (header) {
+            header.style.display = 'none';
+            document.body.classList.add("hide-header");
+        }
+        
+        scrollToBottom(); // Scroll after sending message
+        setTimeout(() => {
+            sendMessage(currentUserMessage || "");
+        }, 500);
+    };
+});

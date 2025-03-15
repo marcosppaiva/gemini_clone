@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from django.db import models
@@ -51,3 +52,22 @@ class ChatHistory(models.Model):
     class Meta:
         verbose_name_plural = "Chat Histories"
         ordering = ['created_at']
+
+
+class FileAttachment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(
+        ChatHistory, on_delete=models.CASCADE, related_name='attachments'
+    )
+    file = models.FileField(upload_to='uploads/%Y/%m/%d/')
+    original_filename = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=100)
+    file_size = models.PositiveIntegerField()
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return str(self.original_filename)
+
+    def get_file_extension(self):
+        _, extension = os.path.split(self.original_filename)
+        return extension

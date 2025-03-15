@@ -1,13 +1,16 @@
+import os
+
 from django.db import IntegrityError
+from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
-from vertexai.generative_models import GenerativeModel
+from django.core.files.storage import FileSystemStorage
 from django.contrib.auth.decorators import login_required
 
 from llm.llm_factory import LLMFactory
 
-from .models import CustomUser, ChatHistory, Conversation
+from .models import CustomUser, ChatHistory, Conversation, FileAttachment
 from .prompt_manager import PromptManager
 
 
@@ -46,7 +49,29 @@ def index(request):
 
         conversation_id = request.POST.get('conversation_id')
 
+        uploaded_files = request.FILES.getlist('files')
+        files_info = []
+
         try:
+            if uploaded_files:
+                upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                fs = FileSystemStorage(location=upload_dir)
+
+                for uploaded_file in uploaded_files:
+                    filename = fs.save(uploaded_file.name, uploaded_file)
+                    file_url = fs.url(filename)
+
+                    files_info.append(
+                        {
+                            'filename': uploaded_file.name,
+                            'url': file_url,
+                            'size': uploaded_file.size,
+                            'type': uploaded_file.content_type,
+                        }
+                    )
+
             prompt_manager = PromptManager()
 
             response = model.generate_text(question)
@@ -67,6 +92,8 @@ def index(request):
 
                 conversation.title = title
 
+            conversation.save()
+
             chat_history = ChatHistory(
                 conversation=conversation,
                 user=request.user,
@@ -75,7 +102,22 @@ def index(request):
                 model=provider,
             )
             chat_history.save()
-            conversation.save()
+
+            if uploaded_files:
+                for i, uploaded_file in enumerate(uploaded_files):
+                    file_info = files_info[i]
+
+                    FileAttachment.objects.create(
+                        message=chat_history,
+                        file=os.path.join(
+                            'uploads',
+                            str(conversation.id),
+                            fs.get_valid_name(uploaded_file.name),
+                        ),
+                        original_filename=file_info.get('filename'),
+                        file_type=file_info.get('type'),
+                        file_size=file_info.get('size'),
+                    )
 
             response_data = {
                 'text': response,
@@ -178,7 +220,5 @@ def register_view(request):
                 error_message = "An account with this email already exists."
 
         return render(request, 'register.html', {'error_message': error_message})
-
-    return render(request, 'register.html')
 
     return render(request, 'register.html')
