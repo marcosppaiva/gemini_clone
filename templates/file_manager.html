@@ -9,7 +9,6 @@
 
     <link rel="stylesheet" href="/static/assets/css/style.css">
     <link rel="stylesheet" href="/static/assets/css/sidebar.css">
-    <link rel="stylesheet" href="/static/assets/css/file-upload.css">
     <link rel="stylesheet" href="/static/assets/css/file-manager.css">
 
     <title>File Manager - Gemini Clone</title>
@@ -182,13 +181,13 @@
                                         <span class="file-card__date">{{ file.uploaded_at|date:"M d, Y" }}</span>
                                     </div>
                                     <div class="file-card__actions">
-                                        <a href="{% url 'download_attachment' file.id %}" class="file-card__action" title="Download">
+                                        <a href="#" class="file-card__action" title="Download">
                                             <i class='bx bx-download'></i>
                                         </a>
-                                        <a href="{% url 'view_conversation' file.message.conversation.id %}" class="file-card__action" title="View in Chat">
+                                        <a href="#" class="file-card__action" title="View in Chat">
                                             <i class='bx bx-message-alt-detail'></i>
                                         </a>
-                                        <a href="{% url 'delete_file' file.id %}" class="file-card__action file-card__action--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this file?')">
+                                        <a href="#" class="file-card__action file-card__action--delete" title="Delete" onclick="return confirm('Are you sure you want to delete this file?')">
                                             <i class='bx bx-trash'></i>
                                         </a>
                                     </div>
