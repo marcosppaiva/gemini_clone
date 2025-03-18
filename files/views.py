@@ -1,5 +1,7 @@
+import os
 from datetime import timedelta
 
+from django.http import Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Q, Sum
@@ -77,3 +79,27 @@ def file_manager(request):
     }
 
     return render(request, 'file_manager.html', context)
+
+
+@login_required(login_url='login')
+def delete_file(request, file_id):
+    file_attachment = get_object_or_404(FileAttachment, id=file_id, user=request.user)
+
+    file_path = file_attachment.file.path
+
+    file_attachment.delete()
+
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as err:
+        # TODO raise a error
+        print(f'Error removing file from filesystem: {err}')
+
+    query_params = request.GET.copy()
+    redirect_url = reverse('file_manager')
+
+    if query_params:
+        redirect_url += '?' + query_params.urlencode()
+
+    return redirect(redirect_url)
