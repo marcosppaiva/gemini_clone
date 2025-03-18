@@ -5,3 +5,4 @@ google-cloud-aiplatform
 pydantic-settings
 openai
 groq
+pgvector
