@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 
 from llm.llm_factory import LLMFactory
 
-from .models import CustomUser, ChatHistory, Conversation, FileAttachment
+from .models import Message, CustomUser, Conversation, FileAttachment
 from .prompt_manager import PromptManager
 
 
@@ -50,11 +50,33 @@ def index(request):
         conversation_id = request.POST.get('conversation_id')
 
         uploaded_files = request.FILES.getlist('files')
-        files_info = []
+
+        prompt_manager = PromptManager()
+
+        response = model.generate_text(question)
+        if conversation_id:
+            try:
+                conversation = Conversation.objects.get(
+                    id=conversation_id, user=request.user
+                )
+            except Conversation.DoesNotExist:
+                conversation = Conversation.objects.create(user=request.user)
+        else:
+            conversation = Conversation.objects.create(user=request.user)
+            prompt = prompt_manager.get_prompt(
+                'request_title', **{'question': question}
+            )
+            title = model.generate_text(prompt)
+
+            conversation.title = title
 
         try:
             if uploaded_files:
-                upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+                file_attachments = []
+
+                upload_dir = os.path.join(
+                    settings.MEDIA_ROOT, 'uploads', str(conversation.id)
+                )
                 os.makedirs(upload_dir, exist_ok=True)
 
                 fs = FileSystemStorage(location=upload_dir)
@@ -63,61 +85,31 @@ def index(request):
                     filename = fs.save(uploaded_file.name, uploaded_file)
                     file_url = fs.url(filename)
 
-                    files_info.append(
-                        {
-                            'filename': uploaded_file.name,
-                            'url': file_url,
-                            'size': uploaded_file.size,
-                            'type': uploaded_file.content_type,
-                        }
+                    file_attachment = FileAttachment.objects.create(
+                        user=request.user,
+                        file=os.path.join(
+                            'uploads',
+                            str(conversation.id),
+                            fs.get_valid_name(uploaded_file.name),
+                        ),
+                        original_filename=uploaded_file.name,
+                        file_type=uploaded_file.content_type,
+                        file_size=uploaded_file.size,
                     )
-
-            prompt_manager = PromptManager()
-
-            response = model.generate_text(question)
-
-            if conversation_id:
-                try:
-                    conversation = Conversation.objects.get(
-                        id=conversation_id, user=request.user
-                    )
-                except Conversation.DoesNotExist:
-                    conversation = Conversation.objects.create(user=request.user)
-            else:
-                conversation = Conversation.objects.create(user=request.user)
-                prompt = prompt_manager.get_prompt(
-                    'request_title', **{'question': question}
-                )
-                title = model.generate_text(prompt)
-
-                conversation.title = title
+                    file_attachments.append(file_attachment)
 
             conversation.save()
 
-            chat_history = ChatHistory(
+            message = Message.objects.create(
                 conversation=conversation,
                 user=request.user,
                 question=question,
                 answer=response,
                 model=provider,
             )
-            chat_history.save()
 
-            if uploaded_files:
-                for i, uploaded_file in enumerate(uploaded_files):
-                    file_info = files_info[i]
-
-                    FileAttachment.objects.create(
-                        message=chat_history,
-                        file=os.path.join(
-                            'uploads',
-                            str(conversation.id),
-                            fs.get_valid_name(uploaded_file.name),
-                        ),
-                        original_filename=file_info.get('filename'),
-                        file_type=file_info.get('type'),
-                        file_size=file_info.get('size'),
-                    )
+            if file_attachments:
+                message.attachments.set(file_attachments)
 
             response_data = {
                 'text': response,

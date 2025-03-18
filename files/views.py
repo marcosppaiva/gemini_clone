@@ -30,9 +30,7 @@ def file_manager(request):
 
     sort_by = request.GET.get('sort', 'newest')
 
-    files_query = FileAttachment.objects.filter(
-        message__conversation__user=request.user
-    )
+    files_query = FileAttachment.objects.filter(user=request.user)
 
     if search_query:
         files_query = files_query.filter(
