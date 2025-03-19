@@ -1,7 +1,7 @@
 services:
 
   postgres:
-    image: postgres:13
+    image: ankane/pgvector
     restart: always
     container_name: postgres
     ports:
@@ -15,8 +15,32 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - app
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "test@gmail.com"
+      PGADMIN_DEFAULT_PASSWORD: "postgres"
+    ports:
+      - "16543:80"
+    depends_on:
+      - postgres
+    networks:
+      - app
+
+
+volumes:
+  postgres:
+  pgadmin:
+
+networks:
+  app:
+    driver: bridge
