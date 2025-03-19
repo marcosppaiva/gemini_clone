@@ -6,3 +6,5 @@ pydantic-settings
 openai
 groq
 pgvector
+psycopg2-binary
+sentence-transformers
