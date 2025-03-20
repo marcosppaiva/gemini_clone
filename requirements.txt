@@ -8,3 +8,4 @@ groq
 pgvector
 psycopg2-binary
 sentence-transformers
+pymupdf4llm
