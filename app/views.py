@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from django.db import IntegrityError
 from django.conf import settings
@@ -8,10 +9,21 @@ from django.contrib.auth import login, logout, authenticate
 from django.core.files.storage import FileSystemStorage
 from django.contrib.auth.decorators import login_required
 
+from llm.embedding import EmbeddingFactory
 from llm.llm_factory import LLMFactory
+from document_processor.pdf_processor import PDFProcessor
 
-from .models import Message, CustomUser, Conversation, FileAttachment
+from .models import Message, CustomUser, Conversation, FileEmbedding, FileAttachment
 from .prompt_manager import PromptManager
+
+
+def process_files(file_path: Path):
+    processor = PDFProcessor()
+
+    documents = processor.process(file_path)
+    docs_content = [doc.page_content for doc in documents]
+
+    return docs_content
 
 
 @login_required(login_url='login')
@@ -69,46 +81,64 @@ def index(request):
             title = model.generate_text(prompt)
 
             conversation.title = title
+        conversation.save()
+
+        message = Message.objects.create(
+            conversation=conversation,
+            user=request.user,
+            question=question,
+            answer=response,
+            model=provider,
+        )
 
         try:
             if uploaded_files:
                 file_attachments = []
 
                 upload_dir = os.path.join(
-                    settings.MEDIA_ROOT, 'uploads', str(conversation.id)
+                    settings.MEDIA_ROOT, 'uploads', str(conversation.user.id)
                 )
                 os.makedirs(upload_dir, exist_ok=True)
 
                 fs = FileSystemStorage(location=upload_dir)
 
                 for uploaded_file in uploaded_files:
+                    file_path = os.path.join(
+                        upload_dir,
+                        fs.get_valid_name(uploaded_file.name),
+                    )
                     filename = fs.save(uploaded_file.name, uploaded_file)
                     file_url = fs.url(filename)
 
-                    file_attachment = FileAttachment.objects.create(
-                        user=request.user,
-                        file=os.path.join(
-                            'uploads',
-                            str(conversation.id),
-                            fs.get_valid_name(uploaded_file.name),
-                        ),
-                        original_filename=uploaded_file.name,
-                        file_type=uploaded_file.content_type,
-                        file_size=uploaded_file.size,
-                    )
-                    file_attachments.append(file_attachment)
+                    if Path(file_path).suffix == '.pdf':
+                        # documents = process_files(Path(file_path))
+                        processor = PDFProcessor()
+                        documents = processor.process(Path(file_path))
 
-            conversation.save()
+                        embedding_model = EmbeddingFactory.get_provider('gemini')
+                        embeddings = embedding_model.get_embedding(
+                            [doc.page_content for doc in documents]
+                        )
 
-            message = Message.objects.create(
-                conversation=conversation,
-                user=request.user,
-                question=question,
-                answer=response,
-                model=provider,
-            )
+                        file_attachment = FileAttachment.objects.create(
+                            user=request.user,
+                            file=file_url,
+                            original_filename=uploaded_file.name,
+                            file_type=uploaded_file.content_type,
+                            file_size=uploaded_file.size,
+                        )
 
-            if file_attachments:
+                        file_attachments.append(file_attachment)
+
+                        for idx, doc in enumerate(documents):
+                            FileEmbedding.objects.create(
+                                file_attachment=file_attachment,
+                                content=doc.page_content,
+                                embedding=embeddings[idx].values,
+                                metadata=doc.metadata,
+                            )
+
+            if uploaded_files:
                 message.attachments.set(file_attachments)
 
             response_data = {
