@@ -41,10 +41,7 @@ class Conversation(models.Model):
 class FileAttachment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='files')
-    file = models.FileField(upload_to='uploads/%Y/%m/%d/')
-    # TODO review the blank and null
-    content = models.TextField(blank=True, null=True)
-    embedding = VectorField(dimensions=768, editable=False, blank=True, null=True)
+    file = models.FileField(upload_to='uploads/%Y/%m/%d/', max_length=400)
     original_filename = models.CharField(max_length=255)
     file_type = models.CharField(max_length=100)
     file_size = models.PositiveIntegerField()
@@ -56,6 +53,16 @@ class FileAttachment(models.Model):
     def get_file_extension(self):
         _, extension = os.path.split(self.original_filename)
         return extension
+
+
+class FileEmbedding(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    file_attachment = models.ForeignKey(
+        FileAttachment, on_delete=models.CASCADE, related_name='collections'
+    )
+    content = models.TextField()
+    embedding = VectorField(dimensions=768)
+    metadata = models.JSONField(default=dict)
 
 
 class Message(models.Model):
