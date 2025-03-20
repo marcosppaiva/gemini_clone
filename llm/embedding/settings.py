@@ -8,14 +8,14 @@ class EmbeddingSettings(BaseSettings): ...
 
 
 class OpenAIEmbeddingSettings(EmbeddingSettings):
-    api_key: str = os.getenv('OPENAI_API_KEY')  # type: ignore
+    api_key: str = os.getenv('OPENAI_API_KEY', '')  # type: ignore
     default_model: str = os.getenv(
         'OPENAI_EMBEDDING_MODEL_NAME', 'text-embedding-ada-002'
     )
 
 
 class GeminiEmbeddingSettings(EmbeddingSettings):
-    api_key: str = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')  # type: ignore
+    api_key: str = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')  # type: ignore
     default_model: str = os.getenv('GEMINI_EMBEDDING_MODEL_NAME', 'text-embedding-005')
 
 
